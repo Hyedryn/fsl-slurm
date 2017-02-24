@@ -315,6 +315,7 @@ while [ $1 != -- ] ; do
     -j)
       jid=$2
       sge_hold="-hold_jid $jid"
+      slurm_hold="-d after:$jid"
       shift;;
     -t)
       taskfile=$2
@@ -322,6 +323,7 @@ while [ $1 != -- ] ; do
 	      tasks=`wc -l $taskfile | awk '{print $1}'`
 	      if [ $tasks -ne 0 ]; then
     	  	sge_tasks="-t 1-$tasks"
+		slurm_tasks="-a 1-$tasks"
     	  else
     	    echo "Task file ${taskfile} is empty"
     	    echo "Should be a text file listing all the commands to run!"
@@ -340,6 +342,7 @@ while [ $1 != -- ] ; do
       shift;;
     -l)
       LogOpts="-o $2 -e $2";
+      slurmLogOpts="--output $2/slurm-%A_%a.out --error=$2/slurm-%A_%a.err";
       LogDir="${2}/";
       if [ ! -e ${2} ]; then 
 	  mkdir -p $2
@@ -511,19 +514,21 @@ EOF1
 
         else
             # multiple tasks are listed in the $taskfile
+            slurm_command="sbatch $slurm_tasks -J array-test --partition=express --time=00:30:00 --mem-per-cpu=100"
+            slurm_command="sbatch --partition=$queue --time=02:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOpts $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
-                    echo "Starting Slurm submissions..." >&2
+                echo slurm_command: $slurm_command >&2
+                echo control file: $taskfile >&2
             fi
-            _SRMRAND=$RANDOM
-            _SRMNAME=$JobName$SRMRAND
-            echo "========================" >> sbatch.log
-            echo "= Starting submissions =" >> sbatch.log
-            echo "========================" >> sbatch.log
-            date >> sbatch.log
-while read line
-do
-    if [ "x$line" != "x" ] ; then
-sbatch -J $_SRMNAME -o "slurm-log-$_SRMNAME-%j-%N.out" -t 24:00:00 -p $queue -n 1 <> sbatch.log 2>&1
+
+            exec $slurm_command <<EOF  | awk '{print $4}'
+#!/bin/sh
+
+command=\`sed -n -e "\${SLURM_ARRAY_TASK_ID}p" $taskfile\`
+
+
+exec /bin/sh -c "\$command"
+EOF
         fi
         ;;
 
