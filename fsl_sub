@@ -514,7 +514,7 @@ EOF1
 
         else
             # multiple tasks are listed in the $taskfile
-            slurm_command="sbatch --partition=$queue --time=02:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOpts $slurm_hold $slurm_tasks"
+            slurm_command="sbatch --partition=short --time=02:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOpts $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
                 echo slurm_command: $slurm_command >&2
                 echo control file: $taskfile >&2
