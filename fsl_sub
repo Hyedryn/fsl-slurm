@@ -311,7 +311,7 @@ while [ $1 != -- ] ; do
       shift;;
     -M)
       mailto=$2
-      uid=`cut -d@ -f1`
+      uid=`echo $2 | cut -d@ -f1`
       mailto=`ldapsearch -x -h cheaha-master01 -b "dc=cm,dc=cluster" uid=$uid mail | awk -F": " '/^mail/{print $2}'`
       shift;;
     -j)
