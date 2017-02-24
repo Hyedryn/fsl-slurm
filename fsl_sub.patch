@@ -1,0 +1,99 @@
+--- fsl_sub.orig        2016-04-07 12:45:12.037319620 +0100
++++ fsl_sub     2016-12-14 12:41:38.645438618 +0000
+@@ -80,7 +80,7 @@
+ # "NONE". Note that a user can unset SGE_ROOT if they don't want the
+ # cluster to be used.
+ ###########################################################################
+-METHOD=SGE
++METHOD=SLURM
+ unset module
+ if [ "x$SGE_ROOT" = "x" ] ; then
+        METHOD=NONE
+@@ -92,6 +92,10 @@
+        fi
+ fi
+ 
++if [ "x$SLURM_JOB_ID" != "x" ] ; then
++       METHOD=SLURM
++fi
++
+ # stop submitted scripts from submitting jobs themselves
+ if [ "X$FSLSUBALREADYRUN" = "Xtrue" ] ; then
+     METHOD=NONE
+@@ -127,6 +131,11 @@
+     fi
+     queueCmd=" -q $queue " 
+ 
++    # if slurm environment is detected use the compute partition, change this to suit
++    if [ $METHOD = SLURM ] ; then
++           queue=compute
++    fi
++
+     #echo "Estimated time was $1 mins: queue name is $queue"
+ }
+ 
+@@ -222,10 +231,10 @@
+ # change. It also sets up the basic emailing control.
+ ###########################################################################
+ 
+-queue=long.q
++queue=compute
+ queueCmd=" -q long.q "
+ mailto=`whoami`@fmrib.ox.ac.uk
+-MailOpts="a"
++MailOpts="n"
+ 
+ 
+ ###########################################################################
+@@ -475,6 +484,63 @@
+        ;;
+ 
+ ###########################################################################
++# SLURM method
++# this is a very naive way of doing things, its just to simply fire off all
++# the tasks individually to the resource manager if there's a taskfile;
++# or just run the command if there's a single command specified
++###########################################################################
++
++    SLURM)
++        # single command or a taskfile with multiple commands? if $tasks is empty, then it's a single command
++        if [ "x$tasks" = "x" ] ; then
++            # single command
++
++            if [ $verbose -eq 1 ] ; then
++                echo executing: $@ >&2
++            fi
++
++           # now run it (don't submit a new job, run it in this job)
++           /bin/sh < ${LogDir}${JobName}.o$$ 2> ${LogDir}${JobName}.e$$
++$@
++EOF1
++           ERR=$?
++           if [ $ERR -ne 0 ] ; then
++               cat ${LogDir}${JobName}.e$$ >&2
++               exit $ERR
++           fi
++
++        else
++            # multiple tasks are listed in the $taskfile
++            if [ $verbose -eq 1 ] ; then
++                    echo "Starting Slurm submissions..." >&2
++            fi
++            _SRMRAND=$RANDOM
++            _SRMNAME=$JobName$SRMRAND
++            echo "========================" >> sbatch.log
++            echo "= Starting submissions =" >> sbatch.log
++            echo "========================" >> sbatch.log
++            date >> sbatch.log
++while read line
++do
++    if [ "x$line" != "x" ] ; then
++sbatch -J $_SRMNAME -o "slurm-log-$_SRMNAME-%j-%N.out" -t 24:00:00 -p $queue -n 1 <> sbatch.log 2>&1
++        fi
++        ;;
++
++
++###########################################################################
+ # Don't change the following - this runs the commands directly if a
+ # cluster is not being used.
+ ###########################################################################
