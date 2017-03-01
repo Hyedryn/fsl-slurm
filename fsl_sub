@@ -344,7 +344,7 @@ while [ $1 != -- ] ; do
       shift;;
     -l)
       LogOpts="-o $2 -e $2";
-      slurmLogOpts="--output $2/slurm-%A_%a.out --error=$2/slurm-%A_%a.err";
+      slurmLogOptsArray="--output $2/slurm-%A_%a.out --error=$2/slurm-%A_%a.err";
       LogDir="${2}/";
       if [ ! -e ${2} ]; then 
 	  mkdir -p $2
@@ -516,7 +516,7 @@ EOF1
 
         else
             # multiple tasks are listed in the $taskfile
-            slurm_command="sbatch --partition=short --time=02:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOpts $slurm_hold $slurm_tasks"
+            slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOptsArray $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
                 echo slurm_command: $slurm_command >&2
                 echo control file: $taskfile >&2
