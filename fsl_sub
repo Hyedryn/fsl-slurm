@@ -344,6 +344,7 @@ while [ $1 != -- ] ; do
       shift;;
     -l)
       LogOpts="-o $2 -e $2";
+      slurmLogOptsJob="--output $2/slurm-%j.out --error=$2/slurm-%j.err";
       slurmLogOptsArray="--output $2/slurm-%A_%a.out --error=$2/slurm-%A_%a.err";
       LogDir="${2}/";
       if [ ! -e ${2} ]; then 
@@ -498,22 +499,17 @@ EOF
     SLURM)
         # single command or a taskfile with multiple commands? if $tasks is empty, then it's a single command
         if [ "x$tasks" = "x" ] ; then
-            # single command
 
+            slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOptsJob $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
-                echo executing: $@ >&2
+		echo slurm_command: $slurm_command >&2
+		echo control file: $taskfile >&2
             fi
 
-           # now run it (don't submit a new job, run it in this job)
-           /bin/sh < ${LogDir}${JobName}.o$$ 2> ${LogDir}${JobName}.e$$
+	    exec $slurm_command <<EOF | awk '{print $4}'
+#!/bin/sh
 $@
-EOF1
-           ERR=$?
-           if [ $ERR -ne 0 ] ; then
-               cat ${LogDir}${JobName}.e$$ >&2
-               exit $ERR
-           fi
-
+EOF
         else
             # multiple tasks are listed in the $taskfile
             slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=14000 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOptsArray $slurm_hold $slurm_tasks"
