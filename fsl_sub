@@ -234,6 +234,8 @@ omp_pe='openmp'
 queue=compute
 queueCmd=" -q long.q "
 mailto=`whoami`@fmrib.ox.ac.uk
+uid=`echo $mailto | cut -d@ -f1`
+mailto=`ldapsearch -x -h cheaha-master01 -b "dc=cm,dc=cluster" uid=$uid mail | awk -F": " '/^mail/{print $2}'`
 MailOpts="n"
 
 
