@@ -317,7 +317,7 @@ while [ $1 != -- ] ; do
     -j)
       jid=$2
       sge_hold="-hold_jid $jid"
-      slurm_hold="-d after:$jid"
+      slurm_hold="-d afterany:$jid"
       shift;;
     -t)
       taskfile=$2
