@@ -265,7 +265,12 @@ mkdir -p ${subjdir}.bedpostX/xfms
 
 mailto=`whoami`@fmrib.ox.ac.uk
 echo Queuing preprocessing stages
-preprocid=`${FSLDIR}/bin/fsl_sub -T 60 -m as -N bpx_preproc -l ${subjdir}.bedpostX/logs ${FSLDIR}/bin/bedpostx_preproc.sh ${subjdir} ${gflag}`
+if [ "x$SLURM" != "x" ]; then
+  mailopts="FAIL"
+else
+  mailopts="as"
+fi
+preprocid=`${FSLDIR}/bin/fsl_sub -T 60 -m $mailopts -N bpx_preproc -l ${subjdir}.bedpostX/logs ${FSLDIR}/bin/bedpostx_preproc.sh ${subjdir} ${gflag}`
 
 echo Queuing parallel processing stage
 nslices=`${FSLDIR}/bin/fslval ${subjdir}/data dim3`
@@ -297,7 +302,12 @@ done
 bedpostid=`${FSLDIR}/bin/fsl_sub -j $preprocid -l ${subjdir}.bedpostX/logs -M $mailto -N bedpostx -t ${subjdir}.bedpostX/commands.txt`
 
 echo Queuing post processing stage
-mergeid=`${FSLDIR}/bin/fsl_sub -j $bedpostid -T 60 -m as -N bpx_postproc -l ${subjdir}.bedpostX/logs ${FSLDIR}/bin/bedpostx_postproc.sh $subjdir`
+if [ "x$SLURM" != "x" ]; then
+  mailopts="FAIL,END"
+else
+  mailopts="as"
+fi
+mergeid=`${FSLDIR}/bin/fsl_sub -j $bedpostid -T 60 -m $mailopts -N bpx_postproc -l ${subjdir}.bedpostX/logs ${FSLDIR}/bin/bedpostx_postproc.sh $subjdir`
 
 echo $mergeid > ${subjdir}.bedpostX/logs/postproc_ID
 
@@ -323,6 +333,10 @@ elif [ "x$SLURM" != "x" ]; then
 scancel $mergeid $bedpostid $preprocid
 EOC
     chmod +x ${subjdir}.bedpostX/cancel
+
+    echo
+    echo You will get an email at the end of the post-processing stage.
+    echo
 else
     sleep 190
 fi
