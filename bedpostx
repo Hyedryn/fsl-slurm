@@ -205,6 +205,17 @@ if [ -n "$SGE_ROOT" ]; then
 	fi
 fi
 
+if [ "$SLURM" ]; then
+        # Look for an CUDA queue
+        if [ -n "$FSLGECUDAQ" -a "$nocuda" -eq 0 ]; then
+                # Trust that the queue exists
+                if [ -x $0_gpu ]; then
+                       exec $0_gpu $myopts
+                fi
+        fi
+fi
+
+
 echo subjectdir is $subjdir
 
 #check that all required files exist
