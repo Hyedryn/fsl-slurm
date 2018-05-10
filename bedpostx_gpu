@@ -137,7 +137,7 @@ sampleevery=25
 model=2
 gflag=0
 other=""
-if [ "x$SGE_ROOT" = "x" ]; then
+if [ "x$SGE_ROOT" = "x" -a "x$SLURM" = "x" ]; then
 	queue=''
 fi
 
@@ -227,6 +227,11 @@ rm -f ${subjdir}.bedpostX/logs/monitor/*
 mkdir -p ${subjdir}.bedpostX/xfms
 
 #mailto=`whoami`@fmrib.ox.ac.uk
+if [ "x$SLURM" != "x" ]; then
+  mailopts="FAIL"
+else
+  mailopts="as"
+fi
 
 echo Copying files to bedpost directory
 
@@ -265,7 +270,7 @@ echo Queuing parallel processing stage
 [ -f ${subjdir}.bedpostX/commands.txt ] && rm ${subjdir}.bedpostX/commands.txt
 
 monitor
-if [ "x$SGE_ROOT" = "x" ]; then
+if [ "x$SGE_ROOT" = "x" -a "x$SLURM" = "x" ]; then
     ${subjdir}.bedpostX/monitor&
 fi
 
@@ -302,10 +307,16 @@ fi
 
 
 echo Queuing post processing stage
+if [ "x$SLURM" != "x" ]; then
+  mailopts="FAIL,END"
+else
+  mailopts="as"
+fi
+
 post_command="${FSLDIR}/bin/bedpostx_postproc_gpu.sh --data=${subjdir}/data --mask=$subjdir.bedpostX/nodif_brain_mask -b ${subjdir}.bedpostX/bvals -r ${subjdir}.bedpostX/bvecs  --forcedir --logdir=$subjdir.bedpostX/diff_parts $gopts $nvox $njobs ${subjdir} ${FSLDIR}"
 if [ $qsys -eq 0 ]; then
-	#SGE
-	mergeid=`${FSLDIR}/bin/fsl_sub -T 120 -j $bedpostid -N bedpostx_postproc_gpu -l ${subjdir}.bedpostX/logs $post_command`
+	#SGE or SLURM
+	mergeid=`${FSLDIR}/bin/fsl_sub -T 120 -j $bedpostid -m $mailopts -N bedpostx_postproc_gpu -l ${subjdir}.bedpostX/logs $post_command`
 else
 	#TORQUE
 	echo $post_command > ${subjdir}.bedpostX/temp
@@ -324,6 +335,19 @@ if [ "x$SGE_ROOT" != "x" ]; then
     cat <<EOC > ${subjdir}.bedpostX/cancel
 #!/bin/sh
 qdel $mergeid $bedpostid
+EOC
+    chmod +x ${subjdir}.bedpostX/cancel
+
+    echo
+    echo You will get an email at the end of the post-processing stage.
+    echo
+elif [ "x$SLURM" != "x" ]; then
+    echo
+    echo Type ${subjdir}.bedpostX/monitor to show progress.
+    echo Type ${subjdir}.bedpostX/cancel to terminate all the queued tasks.
+    cat <<EOC > ${subjdir}.bedpostX/cancel
+#!/bin/sh
+scancel $mergeid $bedpostid $preprocid
 EOC
     chmod +x ${subjdir}.bedpostX/cancel
 
