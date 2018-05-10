@@ -80,7 +80,7 @@ export LC_ALL=C
 # "NONE". Note that a user can unset SGE_ROOT if they don't want the
 # cluster to be used.
 ###########################################################################
-METHOD=SGE
+METHOD=SLURM
 unset module
 if [ "x$SGE_ROOT" = "x" ] ; then
 	METHOD=NONE
@@ -90,6 +90,10 @@ else
 		METHOD=NONE
 		echo "Warning: SGE_ROOT environment variable is set but Grid Engine software not found, will run locally" >&2
 	fi
+fi
+
+if [ "x$SLURM_JOB_ID" != "x" ] ; then
+       METHOD=SLURM
 fi
 
 # stop submitted scripts from submitting jobs themselves
@@ -126,6 +130,11 @@ map_qname ()
 	queue=verylong.q
     fi
     queueCmd=" -q $queue " 
+
+    # if slurm environment is detected use the compute partition, change this to suit
+    if [ $METHOD = SLURM ] ; then
+           queue=compute
+    fi
 
     #echo "Estimated time was $1 mins: queue name is $queue"
 }
@@ -222,10 +231,12 @@ omp_pe='openmp'
 # change. It also sets up the basic emailing control.
 ###########################################################################
 
-queue=long.q
+queue=compute
 queueCmd=" -q long.q "
 mailto=`whoami`@fmrib.ox.ac.uk
-MailOpts="a"
+uid=`echo $mailto | cut -d@ -f1`
+mailto=`ldapsearch -x -h cheaha-master01 -b "dc=cm,dc=cluster" uid=$uid mail | awk -F": " '/^mail/{print $2}'`
+MailOpts="n"
 
 
 ###########################################################################
@@ -302,10 +313,13 @@ while [ $1 != -- ] ; do
       shift;;
     -M)
       mailto=$2
+      uid=`echo $2 | cut -d@ -f1`
+      mailto=`ldapsearch -x -h cheaha-master01 -b "dc=cm,dc=cluster" uid=$uid mail | awk -F": " '/^mail/{print $2}'`
       shift;;
     -j)
       jid=$2
       sge_hold="-hold_jid $jid"
+      slurm_hold="-d afterany:$jid"
       shift;;
     -t)
       taskfile=$2
@@ -313,6 +327,7 @@ while [ $1 != -- ] ; do
 	      tasks=`wc -l $taskfile | awk '{print $1}'`
 	      if [ $tasks -ne 0 ]; then
     	  	sge_tasks="-t 1-$tasks"
+		slurm_tasks="-a 1-$tasks"
     	  else
     	    echo "Task file ${taskfile} is empty"
     	    echo "Should be a text file listing all the commands to run!"
@@ -328,9 +343,12 @@ while [ $1 != -- ] ; do
       shift;;
     -m)
       MailOpts=$2;
+      slurmMailOpts=$2;
       shift;;
     -l)
       LogOpts="-o $2 -e $2";
+      slurmLogOptsJob="--output $2/slurm-%j.out --error=$2/slurm-%j.err";
+      slurmLogOptsArray="--output $2/slurm-%A_%a.out --error=$2/slurm-%A_%a.err";
       LogDir="${2}/";
       if [ ! -e ${2} ]; then 
 	  mkdir -p $2
@@ -473,6 +491,47 @@ exec /bin/sh -c "\$command"
 EOF
 	fi
 	;;
+
+###########################################################################
+# SLURM method
+# this is a very naive way of doing things, its just to simply fire off all
+# the tasks individually to the resource manager if there's a taskfile;
+# or just run the command if there's a single command specified
+###########################################################################
+
+    SLURM)
+        # single command or a taskfile with multiple commands? if $tasks is empty, then it's a single command
+        if [ "x$tasks" = "x" ] ; then
+
+            slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=14000 --mail-type=$slurmMailOpts --mail-user=$mailto -J $JobName $slurmLogOptsJob $slurm_hold $slurm_tasks"
+            if [ $verbose -eq 1 ] ; then
+		echo slurm_command: $slurm_command >&2
+		echo control file: $taskfile >&2
+            fi
+
+	    exec $slurm_command <<EOF | awk '{print $4}'
+#!/bin/sh
+$@
+EOF
+        else
+            # multiple tasks are listed in the $taskfile
+            slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=1024 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOptsArray $slurm_hold $slurm_tasks"
+            if [ $verbose -eq 1 ] ; then
+                echo slurm_command: $slurm_command >&2
+                echo control file: $taskfile >&2
+            fi
+
+            exec $slurm_command <<EOF  | awk '{print $4}'
+#!/bin/sh
+
+command=\`sed -n -e "\${SLURM_ARRAY_TASK_ID}p" $taskfile\`
+
+
+exec /bin/sh -c "\$command"
+EOF
+        fi
+        ;;
+
 
 ###########################################################################
 # Don't change the following - this runs the commands directly if a
