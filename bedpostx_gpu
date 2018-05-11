@@ -293,7 +293,7 @@ done
 
 if [ $qsys -eq 0 ]; then
 	#SGE or SLURM
-	bedpostid=`${FSLDIR}/bin/fsl_sub -q $queue -l ${subjdir}.bedpostX/logs -N bedpostx_gpu -j $splitID -m $mailopts -t ${subjdir}.bedpostX/commands.txt`
+	bedpostid=`${FSLDIR}/bin/fsl_sub -q $queue -l ${subjdir}.bedpostX/logs -N bedpostx_gpu -j $splitID -m $mailopts -e "--gres=gpu" -t ${subjdir}.bedpostX/commands.txt`
 else
 	#TORQUE
 	taskfile=${subjdir}.bedpostX/commands.txt
