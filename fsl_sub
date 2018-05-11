@@ -509,7 +509,7 @@ EOF
         # single command or a taskfile with multiple commands? if $tasks is empty, then it's a single command
         if [ "x$tasks" = "x" ] ; then
 
-            slurm_command="sbatch --partition=$queue --time=12:00:00 --mem-per-cpu=14000 --mail-type=$slurmMailOpts --mail-user=$mailto -J $JobName $slurmLogOptsJob $slurm_hold $slurm_tasks"
+            slurm_command="sbatch --partition=$queue --time=12:00:00 --mem-per-cpu=14000 --mail-type=$slurmMailOpts --mail-user=$mailto -J $JobName $extraargs  $slurmLogOptsJob $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
 		echo slurm_command: $slurm_command >&2
 		echo control file: $taskfile >&2
@@ -521,7 +521,7 @@ $@
 EOF
         else
             # multiple tasks are listed in the $taskfile
-            slurm_command="sbatch --partition=$queue --time=12:00:00 --mem-per-cpu=1024 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOptsArray $slurm_hold $slurm_tasks"
+            slurm_command="sbatch --partition=$queue --time=12:00:00 --mem-per-cpu=1024 --mail-type=FAIL --mail-user=$mailto -J $JobName $extraargs $slurmLogOptsArray $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
                 echo slurm_command: $slurm_command >&2
                 echo control file: $taskfile >&2
