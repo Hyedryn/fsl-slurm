@@ -137,6 +137,7 @@ sampleevery=25
 model=2
 gflag=0
 other=""
+SLURM=`which sbatch 2> /dev/null`  # determine if slurm batch system is available
 if [ "x$SGE_ROOT" = "x" -a "x$SLURM" = "x" ]; then
 	queue=''
 fi
