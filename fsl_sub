@@ -133,7 +133,7 @@ map_qname ()
 
     # if slurm environment is detected use the compute partition, change this to suit
     if [ $METHOD = SLURM ] ; then
-           queue=compute
+           queue=${FSLSLURMPART:-"compute"}
     fi
 
     #echo "Estimated time was $1 mins: queue name is $queue"
