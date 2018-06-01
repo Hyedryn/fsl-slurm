@@ -133,7 +133,7 @@ map_qname ()
 
     # if slurm environment is detected use the compute partition, change this to suit
     if [ $METHOD = SLURM ] ; then
-           queue=compute
+           queue=${FSLSLURMPART:-"compute"}
     fi
 
     #echo "Estimated time was $1 mins: queue name is $queue"
@@ -203,7 +203,7 @@ if [ $nargs -eq 0 ] ; then
   usage
 fi
 
-set -- `getopt T:q:a:p:M:j:t:z:N:Fvm:l:s: $*`
+set -- `getopt T:q:a:p:M:j:t:z:N:Fvm:l:s:e: $*`
 result=$?
 if [ $result != 0 ] ; then
   echo "What? Your arguments make no sense!"
@@ -371,6 +371,9 @@ while [ $1 != -- ] ; do
       peName=`echo $pe_string | cut -d',' -f 1`
       peThreads=`echo $pe_string | cut -d',' -f 2`
       shift;;
+    -e)
+      extraargs=$2;
+      shift;;
   esac
   shift  # next flag
 done
@@ -500,10 +503,13 @@ EOF
 ###########################################################################
 
     SLURM)
+	# hard code short partition for now if undefined
+	queue=${queue:-"short"}
+
         # single command or a taskfile with multiple commands? if $tasks is empty, then it's a single command
         if [ "x$tasks" = "x" ] ; then
 
-            slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=14000 --mail-type=$slurmMailOpts --mail-user=$mailto -J $JobName $slurmLogOptsJob $slurm_hold $slurm_tasks"
+            slurm_command="sbatch --partition=$queue --time=12:00:00 --mem-per-cpu=14000 --mail-type=$slurmMailOpts --mail-user=$mailto -J $JobName $extraargs  $slurmLogOptsJob $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
 		echo slurm_command: $slurm_command >&2
 		echo control file: $taskfile >&2
@@ -515,7 +521,7 @@ $@
 EOF
         else
             # multiple tasks are listed in the $taskfile
-            slurm_command="sbatch --partition=short --time=12:00:00 --mem-per-cpu=1024 --mail-type=FAIL --mail-user=$mailto -J $JobName $slurmLogOptsArray $slurm_hold $slurm_tasks"
+            slurm_command="sbatch --partition=$queue --time=12:00:00 --mem-per-cpu=2048 --mail-type=FAIL --mail-user=$mailto -J $JobName $extraargs $slurmLogOptsArray $slurm_hold $slurm_tasks"
             if [ $verbose -eq 1 ] ; then
                 echo slurm_command: $slurm_command >&2
                 echo control file: $taskfile >&2
